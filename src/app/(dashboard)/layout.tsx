@@ -6,6 +6,10 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { LayoutDashboard, Users, Calendar, Stethoscope, LogOut, Activity } from 'lucide-react';
 
+
+import Cookies from 'js-cookie';
+
+
 // ✅ COMPONENTE PRINCIPAL
 export default function DashboardLayout({
   children,
@@ -21,7 +25,8 @@ export default function DashboardLayout({
     }
   }, [router]);
 
-  const handleLogout = () => {
+ const handleLogout = () => {
+    Cookies.remove('token');
     localStorage.removeItem('token');
     router.push('/login');
   };

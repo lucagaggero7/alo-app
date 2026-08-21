@@ -8,10 +8,13 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { toast } from 'sonner';
-import { Input } from '@/components/ui/Input';
-import { Button } from '@/components/ui/Button';
+import { Input } from '../../../components/ui/Input';
+import { Button } from '../../../components/ui/Button';
+import { authApi } from '../../../lib/api/auth';
 
-// Schema de validación
+import Cookies from 'js-cookie';
+
+
 const loginSchema = z.object({
   email: z.string().email('Email inválido'),
   password: z.string().min(6, 'La contraseña debe tener al menos 6 caracteres'),
@@ -34,12 +37,52 @@ export default function LoginPage() {
   const onSubmit = async (data: LoginFormData) => {
     setIsLoading(true);
     try {
-      console.log('Login data:', data);
-      localStorage.setItem('token', 'fake-token');
-      toast.success('¡Bienvenido!');
+      const response = await authApi.login(data);
+      
+      
+      Cookies.set('token', response.access_token, {
+  expires: 1, // días
+  sameSite: 'lax',
+});
+localStorage.setItem('token', response.access_token);
+      
+      // Obtener perfil del usuario (opcional)
+      try {
+        const user = await authApi.getProfile();
+        console.log('Usuario logueado:', user);
+      } catch (profileError) {
+        console.error('Error al obtener perfil:', profileError);
+      }
+      
+      toast.success('✅ ¡Bienvenido!');
+      
+      // Redirigir al dashboard
       router.push('/dashboard');
     } catch (error: any) {
-      toast.error(error.response?.data?.detail || 'Error al iniciar sesión');
+      console.error('Error de login:', error);
+      
+      // Manejar errores específicos
+      if (error.response) {
+        // El servidor respondió con un error
+        const status = error.response.status;
+        const detail = error.response.data?.detail;
+        
+        if (status === 401) {
+          toast.error('❌ Email o contraseña incorrectos');
+        } else if (status === 404) {
+          toast.error('❌ Usuario no encontrado');
+        } else if (status === 409) {
+          toast.error('❌ Usuario desactivado');
+        } else {
+          toast.error(detail || '❌ Error al iniciar sesión');
+        }
+      } else if (error.request) {
+        // La petición se hizo pero no hubo respuesta
+        toast.error('❌ No se pudo conectar con el servidor. ¿El backend está corriendo?');
+      } else {
+        // Otro error
+        toast.error('❌ Error al iniciar sesión');
+      }
     } finally {
       setIsLoading(false);
     }
@@ -50,7 +93,7 @@ export default function LoginPage() {
       <div className="max-w-md w-full space-y-8">
         <div>
           <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
-            ALO APP
+            Iniciar Sesión
           </h2>
           <p className="mt-2 text-center text-sm text-gray-600">
             Sistema de Turnos Médicos

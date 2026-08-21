@@ -8,16 +8,15 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { toast } from 'sonner';
-import { Input } from '@/components/ui/Input';
-import { Button } from '@/components/ui/Button';
+import { Input } from '../../../components/ui/Input';
+import { Button } from '../../../components/ui/Button';
+import { authApi } from '../../../lib/api/auth';
 
-// ✅ Schema con defaultValues explícitos
 const registerSchema = z.object({
   nombre: z.string().min(2, 'El nombre debe tener al menos 2 caracteres'),
   apellido: z.string().min(2, 'El apellido debe tener al menos 2 caracteres'),
   email: z.string().email('Email inválido'),
   password: z.string().min(6, 'La contraseña debe tener al menos 6 caracteres'),
-  rol: z.enum(['usuario', 'administrador', 'medico']),
 });
 
 type RegisterFormData = z.infer<typeof registerSchema>;
@@ -37,18 +36,43 @@ export default function RegisterPage() {
       apellido: '',
       email: '',
       password: '',
-      rol: 'usuario',
     },
   });
 
   const onSubmit = async (data: RegisterFormData) => {
     setIsLoading(true);
     try {
-      console.log('Register data:', data);
-      toast.success('¡Registro exitoso! Ahora inicia sesión');
-      router.push('/login');
+      await authApi.register({
+        ...data,
+        rol: 'usuario', // Siempre se registra como usuario
+      });
+      
+      toast.success('✅ ¡Registro exitoso! Ahora inicia sesión');
+      
+      // Redirigir al login después de 1.5 segundos
+      setTimeout(() => {
+        router.push('/login');
+      }, 1500);
+      
     } catch (error: any) {
-      toast.error(error.response?.data?.detail || 'Error al registrarse');
+      console.error('Error de registro:', error);
+      
+      if (error.response) {
+        const status = error.response.status;
+        const detail = error.response.data?.detail;
+        
+        if (status === 409) {
+          toast.error('❌ El email ya está registrado');
+        } else if (status === 400) {
+          toast.error(detail || '❌ Datos inválidos');
+        } else {
+          toast.error(detail || '❌ Error al registrarse');
+        }
+      } else if (error.request) {
+        toast.error('❌ No se pudo conectar con el servidor. ¿El backend está corriendo?');
+      } else {
+        toast.error('❌ Error al registrarse');
+      }
     } finally {
       setIsLoading(false);
     }
@@ -59,7 +83,7 @@ export default function RegisterPage() {
       <div className="max-w-md w-full space-y-8">
         <div>
           <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
-            ALO APP
+            Crear Cuenta
           </h2>
           <p className="mt-2 text-center text-sm text-gray-600">
             Regístrate en el Sistema de Turnos Médicos
@@ -95,19 +119,6 @@ export default function RegisterPage() {
               error={errors.password?.message}
               {...register('password')}
             />
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Rol
-              </label>
-              <select
-                className="w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                {...register('rol')}
-              >
-                <option value="usuario">Usuario</option>
-                <option value="medico">Médico</option>
-                <option value="administrador">Administrador</option>
-              </select>
-            </div>
           </div>
 
           <Button type="submit" isLoading={isLoading} className="w-full">
@@ -120,6 +131,14 @@ export default function RegisterPage() {
             </Link>
           </div>
         </form>
+
+        <div className="mt-4 p-4 bg-blue-50 rounded-md border border-blue-200">
+          <p className="text-sm text-blue-700 text-center">
+            🔒 <strong>¿Eres médico o administrador?</strong>
+            <br />
+            Regístrate como usuario y contacta al administrador del sistema para asignar tu rol.
+          </p>
+        </div>
       </div>
     </div>
   );

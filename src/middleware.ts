@@ -2,8 +2,11 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
-// Rutas públicas (no requieren autenticación)
+// Rutas públicas
 const publicRoutes = ['/login', '/register'];
+
+// Rutas protegidas solo para admins
+const adminRoutes = ['/medicos', '/especialidades', '/usuarios'];
 
 export function middleware(request: NextRequest) {
   const token = request.cookies.get('token')?.value;
@@ -24,13 +27,6 @@ export function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    /*
-     * Match all request paths except:
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     * - public folder
-     */
     '/((?!api|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 };
